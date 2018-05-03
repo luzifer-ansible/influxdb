@@ -1,0 +1,37 @@
+---
+
+- name: Install apt key
+  apt_key:
+    url: https://repos.influxdata.com/influxdb.key
+    state: present
+
+- name: Install apt-repo
+  apt_repository:
+    repo: 'deb https://repos.influxdata.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable'
+    state: present
+
+- name: Install influxdb
+  apt:
+    name: influxdb
+    state: present
+
+- name: Adjust configuration
+  replace:
+    dest: /etc/influxdb/influxdb.conf
+    regexp: '(# |){{ item.key }} = .*'
+    replace: '{{ item.key }} = {{ item.value }}'
+  with_dict: '{{ influxdb_config }}'
+  register: influxdb_config_replace
+
+- name: Ensure influxdb is enabled
+  systemd:
+    name: influxdb.service
+    enabled: true
+
+- name: Ensure influxdb is restarted
+  systemd:
+    name: influxdb.service
+    state: restarted
+  when: influxdb_config_replace.changed
+
+...
